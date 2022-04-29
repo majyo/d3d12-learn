@@ -432,7 +432,83 @@ void Render()
     }
 }
 
+void Resize(uint32_t width, uint32_t height)
+{
+	if (g_ClientWidth != width || g_ClientHeight != height)
+	{
+        g_ClientWidth = std::max(1u, width);
+        g_ClientHeight = std::max(1u, height);
+
+        Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
+
+        for (int i = 0; i < g_NumFrames; ++i)
+        {
+            g_BackBuffers[i].Reset();
+            g_FrameFenceValues[i] = g_FrameFenceValues[g_CurrentBackBufferIndex];
+        }
+
+        DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+        ThrowIfFailed(g_SwapChain->GetDesc(&swapChainDesc));
+        ThrowIfFailed(g_SwapChain->ResizeBuffers(g_NumFrames, g_ClientWidth, g_ClientHeight, swapChainDesc.BufferDesc.Format,
+            swapChainDesc.Flags));
+        g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
+        UpdateRenderTargetView(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+	}
+}
+
+void SetFullscreen(bool isFullscreen)
+{
+    if (g_Fullscreen != isFullscreen)
+    {
+        g_Fullscreen = isFullscreen;
+
+        if (g_Fullscreen)
+        {
+            ::GetWindowRect(g_hWnd, &g_WindowRect);
+
+            UINT windowStyle = WS_OVERLAPPEDWINDOW & ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+            ::SetWindowLongW(g_hWnd, GWL_STYLE, windowStyle);
+
+            HMONITOR hMonitor = ::MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTONEAREST);
+            MONITORINFOEX monitorInfo = {};
+            monitorInfo.cbSize = sizeof(MONITORINFOEX);
+            ::GetMonitorInfoW(hMonitor, &monitorInfo);
+            ::SetWindowPos(g_hWnd, HWND_TOP, monitorInfo.rcMonitor.left,
+                monitorInfo.rcMonitor.top, monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top, SWP_FRAMECHANGED | SWP_NOACTIVATE);
+            ::ShowWindow(g_hWnd, SW_MAXIMIZE);
+        }
+        else
+        {
+            ::SetWindowLongW(g_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+            ::SetWindowPos(
+                g_hWnd,
+                HWND_NOTOPMOST,
+                g_WindowRect.left,
+                g_WindowRect.top,
+                g_WindowRect.right - g_WindowRect.left,
+                g_WindowRect.bottom - g_WindowRect.top,
+                SWP_FRAMECHANGED | SWP_NOACTIVATE
+            );
+            ::ShowWindow(g_hWnd, SW_NORMAL);
+        }
+    }
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (g_IsInitialized)
+	{
+		switch (message)
+		{
+		case WM_PAINT:
+            Update();
+            Render();
+            break;
+		}
+	}
+}
+
 int main()
 {
 }
-
