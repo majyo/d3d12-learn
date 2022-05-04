@@ -1,4 +1,4 @@
-﻿#include "Core.h"
+﻿#include "Core/Core.h"
 #include <iostream>
 
 using namespace Microsoft::WRL;
@@ -553,6 +553,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-int main()
+int CALLBACK wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 {
+    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    const wchar_t* windowClassName = L"DX12WindowClass";
+    ParseCommandLineArguments();
+    EnableDebugLayer();
+    g_TearingSupported = CheckTearingSupport();
+    RegisterWindowClass(hInstance, windowClassName);
+    g_hWnd = CreateWindowInstance(windowClassName, hInstance, L"Learning DirectX 3D",
+        g_ClientWidth, g_ClientHeight);
+    ::GetWindowRect(g_hWnd, &g_WindowRect);
+
+    ComPtr<IDXGIAdapter4> dxgiAdapter4 = GetAdapter(g_UseWarp);
+    g_Device = CreateDevice(dxgiAdapter4);
+    g_CommandQueue = CreateCommandQueue(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    g_SwapChain = CreateSwapChain(g_hWnd, g_CommandQueue, g_ClientWidth, g_ClientHeight, g_NumFrames);
+    g_CurrentBackBufferIndex = g_SwapChain->GetCurrentBackBufferIndex();
+    g_RTVDescriptorHeap = CreateDescriptorHeap(g_Device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, g_NumFrames);
+    g_RTVDescriptorSize = g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    UpdateRenderTargetView(g_Device, g_SwapChain, g_RTVDescriptorHeap);
+
+    for (size_t i = 0; i < g_NumFrames; i++)
+    {
+        g_CommandAllocators[i] = CreateCommandAllocator(g_Device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+    }
+    g_CommandList = CreateCommandList(g_Device, g_CommandAllocators[g_CurrentBackBufferIndex], D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+    g_Fence = CreateFence(g_Device);
+    g_FenceEvent = CreateEventHandle();
+
+    g_IsInitialized = true;
+
+    ::ShowWindow(g_hWnd, SW_SHOW);
+
+    MSG msg = {};
+
+    while (msg.message != WM_QUIT)
+    {
+	    if (::PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+	    {
+            ::TranslateMessage(&msg);
+            ::DispatchMessageW(&msg);
+	    }
+    }
+
+    Flush(g_CommandQueue, g_Fence, g_FenceValue, g_FenceEvent);
+    ::CloseHandle(g_FenceEvent);
+
+    return 0;
 }
+

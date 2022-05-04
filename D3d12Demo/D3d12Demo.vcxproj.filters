@@ -18,9 +18,15 @@
     <ClCompile Include="D3d12Demo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Core\CommandQueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Core.h">
+    <ClInclude Include="Core\Core.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\CommandQueue.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
